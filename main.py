@@ -1,5 +1,5 @@
 from typing import Union
-from fastapi import FastAPI
+from fastapi import FastAPI,status,Response
 from fastapi.params import Body
 from pydantic import BaseModel
 from model.PostModel import Post
@@ -32,6 +32,8 @@ def createPost(payLoad:Post):
 @app.get("/post/{id}")
 def getPost(id:int):
     post = findPost(id)
+    if post==None:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
     return {"post detail":post}
 
 @app.get("/posts/latest")
