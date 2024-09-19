@@ -1,5 +1,5 @@
 from typing import Union
-from fastapi import FastAPI,status,Response
+from fastapi import FastAPI,status,Response, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
 from model.PostModel import Post
@@ -12,7 +12,7 @@ myPosts=[
     {"id":2,"title":"Title of post 2","content":"Content of post 2"}
 ]
 
-def findPost(id):
+def findPost(id:int):
     for p in myPosts:
         if p['id']==id:
             return p
@@ -30,10 +30,11 @@ def createPost(payLoad:Post):
     return {"data":payLoad}
 
 @app.get("/post/{id}")
-def getPost(id:int):
+def getPost(id:int,response:Response):
     post = findPost(id)
     if post==None:
-        return Response(status_code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=404, detail=f"Post with id: {id} was not found")
+        #return Response(status_code=status.HTTP_404_NOT_FOUND)
     return {"post detail":post}
 
 @app.get("/posts/latest")
