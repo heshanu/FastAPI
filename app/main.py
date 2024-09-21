@@ -2,7 +2,7 @@ from typing import Union
 from fastapi import FastAPI,status,Response, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
-from model.PostModel import Post
+from model.ProductModel import Product
 from random import randrange
 
 import psycopg2
@@ -18,28 +18,15 @@ def get_db_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# myPosts=[
-#     {"id":1,"title":"Title of post 1","content":"Content of post 1"},
-#     {"id":2,"title":"Title of post 2","content":"Content of post 2"}
-# ]
-
-def findPost(id:int):
-    for p in myPosts:
-        if p['id']==id:
-            return p
-
-def findIndexPost(id:int):
-    for i,p in enumerate(myPosts):
-        if p['id']==id:
-            return i
-
-@app.get("/items/")
-def read_items():
+@app.get("/products/")
+def readItems():
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cursor.execute("SELECT * FROM products")
         items = cursor.fetchall()
+        if not items:
+            raise HTTPException(status_code=404, detail='Couldnt find products')
         return items
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -47,43 +34,59 @@ def read_items():
         cursor.close()
         conn.close()
 
+@app.get("/product/{id}")
+def getProduct(id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("SELECT * FROM products WHERE id = %s", (id,))
+        item = cursor.fetchone()
+        if item is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return item
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
-@app.post("/post")
-def createPost(payLoad:Post):
-    postDict =payLoad.dict() 
-    postDict['id']=randrange(0,100)
-    myPosts.append(postDict) 
-   # print(myPosts)   
-    return {"data":payLoad}
+@app.delete("/products/{id}")
+def deleteProductById(id:int):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("select FROM products WHERE id = %s", (id,))
+        product=cursor.fetchone()
+        if product is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        cursor.execute("Delete from products where id=%s",(id,))
+        conn.commit()
+        return {"message":f"Successfuly delete product id:{id}"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
-@app.get("/post/{id}")
-def getPost(id:int,response:Response):
-    post = findPost(id)
-    if post==None:
-        raise HTTPException(status_code=404, detail=f"Post with id: {id} was not found")
-        #return Response(status_code=status.HTTP_404_NOT_FOUND)
-    return {"post detail":post}
-
-@app.get("/posts/latest")
-def getLatestPost():
-    latestPost= myPosts[len(myPosts)-1]
-    return {"details":latestPost}
-
-@app.delete("/post/{id}",status_code=status.HTTP_204_NO_CONTENT)
-def deletePost(id:int):
-    index=findIndexPost(id)
-    if index==None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id:{id} is not exists")
-    myPosts.pop(index)
-
-    return {"message":"post was successfully deleted"}
-
-@app.put("/post/{id}")
-def updatePost(id:int,post:Post):
-    index=findIndexPost(id)
-    if index==None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id:{id} is not exists")
-    postDict=post.dict()
-    postDict['id']=id
-    myPosts[index]=postDict
-    return {"message":postDict}    
+@app.put("/product/{id}", status_code=status.HTTP_200_OK)
+def updateProductById(id: int, product: Product):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("SELECT * FROM products WHERE id = %s", (id,))
+        item = cursor.fetchone()
+        if item is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        cursor.execute(
+            "UPDATE products SET name = %s, price = %s, is_sale = %s, inventory = %s WHERE id = %s",
+            (product.name, product.price, product.is_sale, product.inventory, id)
+        )
+        conn.commit()
+        return {"message": f"Successfully updated product id: {id}"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
