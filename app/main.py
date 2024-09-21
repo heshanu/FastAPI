@@ -5,12 +5,23 @@ from pydantic import BaseModel
 from model.PostModel import Post
 from random import randrange
 
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from app.config import DATABASE_CONFIG
+
 app = FastAPI()
 
-myPosts=[
-    {"id":1,"title":"Title of post 1","content":"Content of post 1"},
-    {"id":2,"title":"Title of post 2","content":"Content of post 2"}
-]
+def get_db_connection():
+    try:
+        connection = psycopg2.connect(**DATABASE_CONFIG)
+        return connection
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# myPosts=[
+#     {"id":1,"title":"Title of post 1","content":"Content of post 1"},
+#     {"id":2,"title":"Title of post 2","content":"Content of post 2"}
+# ]
 
 def findPost(id:int):
     for p in myPosts:
@@ -22,9 +33,20 @@ def findIndexPost(id:int):
         if p['id']==id:
             return i
 
-@app.get("/posts")
-def getPosts():
-    return {"data":myPosts}
+@app.get("/items/")
+def read_items():
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("SELECT * FROM products")
+        items = cursor.fetchall()
+        return items
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.post("/post")
 def createPost(payLoad:Post):
