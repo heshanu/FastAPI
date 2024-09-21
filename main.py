@@ -17,6 +17,11 @@ def findPost(id:int):
         if p['id']==id:
             return p
 
+def findIndexPost(id:int):
+    for i,p in enumerate(myPosts):
+        if p['id']==id:
+            return i
+
 @app.get("/posts")
 def getPosts():
     return {"data":myPosts}
@@ -41,3 +46,12 @@ def getPost(id:int,response:Response):
 def getLatestPost():
     latestPost= myPosts[len(myPosts)-1]
     return {"details":latestPost}
+
+@app.delete("/post/{id}",status_code=status.HTTP_204_NO_CONTENT)
+def deletePost(id:int):
+    index=findIndexPost(id)
+    if index==None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id:{id} is not exists")
+    myPosts.pop(index)
+
+    return {"message":"post was successfully deleted"}
