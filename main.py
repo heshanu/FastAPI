@@ -55,3 +55,13 @@ def deletePost(id:int):
     myPosts.pop(index)
 
     return {"message":"post was successfully deleted"}
+
+@app.put("/post/{id}")
+def updatePost(id:int,post:Post):
+    index=findIndexPost(id)
+    if index==None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id:{id} is not exists")
+    postDict=post.dict()
+    postDict['id']=id
+    myPosts[index]=postDict
+    return {"message":postDict}    
